@@ -1,0 +1,20 @@
+node_modules/
+dist/
+
+# Environment files - never commit secrets.
+.env
+.env.local
+.env.*.local
+
+# Generated code (Prisma client, build output).
+src/generated/
+
+# Logs and coverage.
+*.log
+coverage/
+
+# OS / editor droppings.
+.DS_Store
+.vscode/
+.idea/
+*cookies*.txt

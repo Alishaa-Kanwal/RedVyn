@@ -1,0 +1,221 @@
+@import "tailwindcss";
+
+/* =========================================================
+   REDVYN — GLOBAL STYLES
+   Tailwind CSS v4
+   ========================================================= */
+
+@theme inline {
+  /* Light/Dark theme colors */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-border: hsl(var(--border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-ring: hsl(var(--ring));
+
+  /* Dashboard chart colors */
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-destructive: hsl(var(--destructive));
+
+  /* RedVyn font */
+  --font-montserrat: var(--font-montserrat);
+}
+
+/* =========================================================
+   THEME VARIABLES
+   ========================================================= */
+
+:root {
+  /* -------------------------------------------------------
+     LIGHT MODE
+     RedVyn Brand Board
+     ------------------------------------------------------- */
+
+  --background: 0 0% 98%;
+  /* #FAFAFA — near-white page background */
+
+  --foreground: 0 0% 10%;
+  /* #1A1A1A — primary body text */
+
+  --card: 0 0% 100%;
+  /* #FFFFFF — card/surface background */
+
+  --card-foreground: 0 0% 10%;
+  /* #1A1A1A — card text */
+
+  --muted: 0 0% 91%;
+  /* #E8E8E8 */
+
+  --muted-foreground: 0 0% 33%;
+  /* #555555 */
+
+  --border: 0 0% 88%;
+  /* #E0E0E0 */
+
+  --primary: 0 100% 27%;
+  /* #8B0000 — RedVyn brand red */
+
+  --primary-foreground: 0 0% 100%;
+  /* #FFFFFF */
+
+  --ring: 0 100% 27%;
+  /* #8B0000 */
+
+  --destructive: 0 84% 60%;
+  /* red-500 */
+
+  /* Dashboard charts (light mode) */
+  --chart-1: 43 96% 56%;
+  /* amber */
+  --chart-2: 217 91% 60%;
+  /* blue */
+  --chart-3: 263 70% 66%;
+  /* violet */
+  --chart-4: 160 84% 39%;
+  /* emerald */
+  --chart-5: 0 84% 60%;
+  /* red */
+}
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+
+.dark {
+  /* -------------------------------------------------------
+     DARK MODE
+     ------------------------------------------------------- */
+
+  --background: 0 0% 7%;
+  /* #121212 */
+
+  --foreground: 0 0% 96%;
+  /* #F5F5F5 */
+
+  --card: 0 0% 12%;
+  /* #1F1F1F */
+
+  --card-foreground: 0 0% 96%;
+  /* #F5F5F5 */
+
+  --muted: 0 0% 17%;
+  /* #2B2B2B */
+
+  --muted-foreground: 0 0% 65%;
+  /* #A6A6A6 */
+
+  --border: 0 0% 22%;
+  /* #383838 */
+
+  --primary: 0 65% 45%;
+  /* brighter RedVyn red for dark backgrounds */
+
+  --primary-foreground: 0 0% 100%;
+  /* #FFFFFF */
+
+  --ring: 0 65% 45%;
+  /* brighter RedVyn red */
+
+  --destructive: 0 84% 65%;
+
+  /* Dashboard charts (dark mode) */
+  --chart-1: 43 96% 60%;
+  --chart-2: 217 91% 67%;
+  --chart-3: 263 70% 72%;
+  --chart-4: 160 84% 50%;
+  --chart-5: 0 84% 65%;
+}
+
+/* =========================================================
+   BASE STYLES
+   ========================================================= */
+
+* {
+  @apply border-border;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-foreground;
+
+  font-family:
+    var(--font-montserrat),
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+
+  margin: 0;
+  padding: 0;
+}
+
+/* Native select menus are rendered by the browser outside the themed form.
+   Explicit option colors keep their text visible when the dark theme is active. */
+select option {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
+/* =========================================================
+   THEME TRANSITIONS
+   ========================================================= */
+
+body,
+header,
+section,
+footer,
+.themed-surface {
+  transition:
+    background-color 0.4s ease,
+    color 0.4s ease,
+    border-color 0.4s ease;
+}
+
+/* =========================================================
+   FOCUS ACCESSIBILITY
+   ========================================================= */
+
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}

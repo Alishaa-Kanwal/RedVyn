@@ -1,0 +1,381 @@
+// RedVyn v1 schema. Steps 1-4 of the build order in redvyn-workflow.md §9.
+//
+// Two deliberate deviations from the spec, both noted in the plan:
+//   - lat/lon Floats instead of PostGIS geography. Distance is an inline haversine
+//     in the match query. PostGIS would force Unsupported("geography"), which pushes
+//     every donor insert into raw SQL for an index this dataset does not need.
+//   - No Redis. Slot allocation is a conditional UPDATE on Case.slotsRemaining,
+//     which is atomic and durable, so there is no counter to rebuild after a crash.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BloodGroup {
+  A_POS
+  A_NEG
+  B_POS
+  B_NEG
+  AB_POS
+  AB_NEG
+  O_POS
+  O_NEG
+}
+
+enum DonorStatus {
+  active
+  paused
+  opted_out
+  blocked
+}
+
+enum PatientStatus {
+  active
+  paused
+  opted_out
+  blocked
+}
+
+enum Language {
+  ur
+  en
+}
+
+enum PatientCondition {
+  thalassemia_major
+  other
+}
+
+enum CaseType {
+  scheduled
+  emergency
+}
+
+enum Role {
+  admin
+}
+
+// Full set from §5.1. v1 only reaches draft..closed plus pending_review;
+// the escalation states are unreachable until build-order step 5.
+enum CaseState {
+  draft
+  matching
+  awaiting_response
+  partially_filled
+  filled
+  in_progress
+  confirmed
+  closed
+  pending_review
+  escalating
+  broadcasting
+  fallback_bloodbank
+  unfilled
+}
+
+enum OfferRole {
+  primary
+  standby_1
+  standby_2
+}
+
+// §5.2
+enum OfferState {
+  pending
+  accepted
+  code_issued
+  completed
+  no_show
+  declined
+  timed_out
+  released
+  promoted
+}
+
+enum ConfirmedBy {
+  family
+  ops
+}
+
+model Hospital {
+  id       String  @id @default(cuid())
+  name     String
+  city     String
+  lat      Float
+  lon      Float
+  deskInfo String
+  verified Boolean @default(false)
+
+  // Self-service login credentials (claimed by hospital personnel after an admin creates
+  // the hospital record). Null until claimed.
+  email        String?   @unique
+  passwordHash String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  cases    Case[]
+  patients Patient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Donor {
+  id        String @id @default(cuid())
+  firstName String
+
+  // §3.1 phones are encrypted at rest and indexed on a keyed hash, so lookup
+  // works without decrypting the table.
+  phoneHash String @unique
+  phoneEnc  String
+
+  bloodGroup BloodGroup
+  lat        Float
+  lon        Float
+  city       String
+
+  lastDonationAt DateTime?
+  // Written once at donation confirmation as lastDonationAt + 90d, never computed
+  // at query time, so the match query stays a plain scan+filter. §3.1
+  nextEligibleAt DateTime @default(now())
+
+  // Populated by hand in the console for now; build-order step 8 automates it.
+  reliabilityScore Int @default(50)
+
+  status   DonorStatus @default(active)
+  language Language    @default(ur)
+
+  consentAt      DateTime
+  consentVersion String
+
+  // The web equivalent of "press 9 / reply STOP" — a self-manage link.
+  manageToken String @unique
+
+  // Self-service login credentials for the donor dashboard.
+  email        String?   @unique
+  passwordHash String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  offers    Offer[]
+  donations Donation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Covers the eligibility gate of the match query.
+  @@index([status, bloodGroup, nextEligibleAt])
+}
+
+model Patient {
+  id        String @id @default(cuid())
+  firstName String
+
+  guardianPhoneHash String
+  guardianPhoneEnc  String
+
+  bloodGroup BloodGroup
+  condition  PatientCondition @default(thalassemia_major)
+  status     PatientStatus    @default(active)
+
+  homeHospitalId String
+  homeHospital   Hospital @relation(fields: [homeHospitalId], references: [id])
+
+  // Link to the Guardian account that manages this patient. Admins create the
+  // Guardian/Patient link; the guardian then claims login access.
+  guardianId String?
+  guardian   Guardian? @relation(fields: [guardianId], references: [id])
+
+  // §3.2. Prediction itself is build-order step 8; for now these are entered
+  // by a clinician on the console.
+  intervalDaysEstimate Int       @default(21)
+  lastTransfusionAt    DateTime?
+  predictedNextAt      DateTime?
+
+  cases     Case[]
+  donations Donation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Case {
+  id String @id @default(cuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+
+  type       CaseType   @default(scheduled)
+  bloodGroup BloodGroup
+
+  unitsRequired Int @default(1)
+  unitsSecured  Int @default(0)
+
+  // The allocation counter. Initialised to unitsRequired (+1 for emergency, the
+  // no-show margin in §3.6). Decremented by a guarded UPDATE, never by app-side
+  // read-modify-write.
+  slotsRemaining Int
+
+  state CaseState @default(draft)
+
+  neededAt  DateTime
+  window    String // e.g. "10:00-13:00", free text, shown to the primary donor only
+  expiresAt DateTime
+
+  // §3.7 radius expansion ladder: 5km → 15km → 30km → blood-bank fallback.
+  radiusMeters Int @default(5000)
+
+  // Held by the requesting family. The only token that can confirm a donation. §3.9
+  familyToken String @unique
+
+  offers    Offer[]
+  donations Donation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([state])
+}
+
+model Offer {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  donorId String
+  donor   Donor  @relation(fields: [donorId], references: [id])
+
+  role  OfferRole
+  state OfferState @default(pending)
+
+  // What the donor opens. In v1 an ops person passes this link on; when WhatsApp
+  // lands it goes in the template body and nothing else changes.
+  token String @unique
+
+  // Issued only on acceptance, and only for a primary. §3.8
+  code          String?
+  codeExpiresAt DateTime?
+
+  sentAt      DateTime?
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One offer per donor per case.
+  @@unique([caseId, donorId])
+  // Backs the NOT EXISTS clause that stops one donor being recruited onto three
+  // cases in the same hour. §3.3
+  @@index([donorId, state])
+}
+
+model Donation {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  donorId String
+  donor   Donor  @relation(fields: [donorId], references: [id])
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+
+  code        String
+  confirmedAt DateTime    @default(now())
+  confirmedBy ConfirmedBy @default(family)
+
+  @@unique([caseId, donorId])
+}
+
+// Append-only. §5.5 requires this for audit regardless, so it doubles as the
+// event log that §4.1 specs a message bus for. Ids only, never PII.
+model Event {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  type      String
+  caseId    String?
+  offerId   String?
+  donorId   String?
+  userId    String?
+  payload   Json     @default("{}")
+
+  @@index([at])
+  @@index([caseId])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(admin)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  preference   UserPreference?
+}
+
+model SystemSettings {
+  id             String   @id @default("singleton")
+  orgName        String
+  orgTagline     String
+  primaryContact String
+  email          String
+  timezone       String
+  language       String
+  dateFormat     String
+  timeFormat     String
+  itemsPerPage   Int      @default(10)
+  updatedAt      DateTime @updatedAt
+}
+
+model UserPreference {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme            String  @default("system")
+  newEmergencyCase Boolean @default(true)
+  donorConfirmed   Boolean @default(true)
+  missedCalls      Boolean @default(true)
+  caseEscalation   Boolean @default(true)
+  dailySummary     Boolean @default(false)
+  autoLogoutMinutes Int    @default(30)
+}
+
+// Guardian account: a real login entity that can be linked to one or more
+// patients. Admins create the link; the guardian sets their password via the
+// claim/invite registration endpoint.
+model Guardian {
+  id        String @id @default(cuid())
+  name      String
+  email     String @unique
+  passwordHash String?
+  isActive  Boolean @default(true)
+  lastLoginAt DateTime?
+
+  patients Patient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Public contact form submissions from the marketing site.
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  createdAt DateTime @default(now())
+}
