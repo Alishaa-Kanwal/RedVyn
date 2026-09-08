@@ -86,8 +86,6 @@ build-time tool the team used to move faster, not a service that RedVyn calls in
 deterministic, rule-based case state machine (see Section 8) is unaffected by this - no model of
 any kind is involved in the running application or in any state transition.
 
-![Qoder usage screenshot (IDE session / Alibaba Cloud console)](screenshots/qoder-usage.png)
-*(pending capture)*
 
 ## 5. System Architecture
 
@@ -121,8 +119,6 @@ Routes bind URLs only. Controllers handle request/response and validation. **Ser
 domain logic and all database calls** - services never import Express, keeping business logic
 testable and independent of the web framework.
 
-![Architecture diagram (draw.io / Excalidraw export)](screenshots/architecture-diagram.png)
-*(pending capture)*
 
 ## 6. Technology Stack
 
@@ -183,8 +179,6 @@ testable and independent of the web framework.
 | `SystemSettings` / `UserPreference` | Platform + per-user configuration |
 | `ContactMessage` | Public contact-form submissions |
 
-![Prisma schema diagram / ERD export](screenshots/prisma-schema-erd.png)
-*(pending capture)*
 
 ## 8. Core Domain Logic
 
@@ -301,7 +295,7 @@ Rate limiting (5 requests / 15 min / IP) is applied to both login routes as brut
 ![Admin dashboard overview screenshot](screenshots/admin%20dashboard.png)
 ![Guardian dashboard screenshot](screenshots/guardian%20dashboard.png)
 ![Case detail / lifecycle view screenshot](screenshots/case-detail-lifecycle.png)
-*(case detail / lifecycle view pending capture)*
+
 
 ## 13. Security & Privacy
 
@@ -324,8 +318,6 @@ Rate limiting (5 requests / 15 min / IP) is applied to both login routes as brut
 - **Current status: 87/87 backend tests passing**, `npm run typecheck` clean, `npm run dev` starts
   successfully, frontend `npm run build` passes.
 
-![Test suite passing screenshot / CI run](screenshots/test-suite-passing.png)
-*(pending capture)*
 
 ## 15. Screenshots
 
@@ -354,23 +346,20 @@ upcoming transfusions) don't have a captured screenshot yet and are marked `(pen
 ![Admin dashboard 3](screenshots/admin%20dashboard%203.png)
 ![Admin dashboard 4](screenshots/admin%20dashboard%204.png)
 ![Donor registry](screenshots/donor-registry.png)
-*(donor registry pending capture)*
-![Case detail with lifecycle timeline](screenshots/case-detail-lifecycle.png)
-*(pending capture)*
-![Emergency live tracker](screenshots/emergency-live-tracker.png)
-*(pending capture)*
-![Audit log](screenshots/audit-log.png)
-*(pending capture)*
 
-**Donor Experience**
-![Donor offer page](screenshots/donor-offer-page.png)
-*(pending capture)*
+![Case detail with lifecycle timeline](screenshots/case-detail-lifecycle.png)
+
+![Emergency live tracker](screenshots/emergency-live-tracker.png)
+
+![Audit log](screenshots/audit-log.png)
+
+
+
 ![Donor dashboard](screenshots/donor%20dashboard.png)
 
 **Guardian Experience**
 ![Guardian dashboard](screenshots/guardian%20dashboard.png)
-![Patient details / upcoming transfusions](screenshots/patient-details-upcoming.png)
-*(pending capture)*
+
 
 **Hospital Experience**
 ![Hospital dashboard](screenshots/hospital%20dashboard.png)
